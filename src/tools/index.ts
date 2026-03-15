@@ -7,6 +7,7 @@ import { registerBoardTools } from "./boards.js";
 import { registerColumnTools } from "./columns.js";
 import { registerTaskChatTools } from "./task-chat.js";
 import { registerFileTools } from "./files.js";
+import { registerStickerTools } from "./stickers.js";
 
 export const registerTools = (server: McpServer) => {
   registerUserTools(server);
@@ -16,4 +17,5 @@ export const registerTools = (server: McpServer) => {
   registerTaskTools(server);
   registerTaskChatTools(server);
   registerFileTools(server);
+  registerStickerTools(server);
 };

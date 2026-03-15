@@ -19,19 +19,19 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
     "axios": "^1.13.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.3.1",
     "yargs": "^17.3.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
-    "typescript": "^5.5.4",
-    "nodemon": "^3.1.7",
     "@typescript-eslint/eslint-plugin": "^8.29.0",
     "@typescript-eslint/parser": "^8.29.0",
     "eslint": "^9.19.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
-    "prettier": "^3.5.3"
+    "nodemon": "^3.1.7",
+    "prettier": "^3.5.3",
+    "typescript": "^5.5.4"
   }
 }

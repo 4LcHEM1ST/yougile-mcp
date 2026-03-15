@@ -16,8 +16,8 @@ export const registerStickerTools = (server: McpServer) => {
     async ({ boardId, limit, offset, name }) => {
       const queryParams = new URLSearchParams();
       if (boardId) queryParams.append('boardId', boardId);
-      if (limit) queryParams.append('limit', limit.toString());
-      if (offset) queryParams.append('offset', offset.toString());
+      if (limit !== undefined) queryParams.append('limit', limit.toString());
+      if (offset !== undefined) queryParams.append('offset', offset.toString());
       if (name) queryParams.append('name', name);
 
       const queryString = queryParams.toString();

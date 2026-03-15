@@ -10,9 +10,9 @@ export const registerStickerTools = (server) => {
         const queryParams = new URLSearchParams();
         if (boardId)
             queryParams.append('boardId', boardId);
-        if (limit)
+        if (limit !== undefined)
             queryParams.append('limit', limit.toString());
-        if (offset)
+        if (offset !== undefined)
             queryParams.append('offset', offset.toString());
         if (name)
             queryParams.append('name', name);

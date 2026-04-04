@@ -453,11 +453,20 @@ yougile-mcp-debug.log
 /build/common/version.js
 /build/tools/boards.js
 /build/tools/columns.js
+/build/tools/files.js
 /build/tools/index.js
 /build/tools/projects.js
+/build/tools/stickers.js
 /build/tools/task-chat.js
 /build/tools/tasks.js
 /build/tools/users.js
+/build/cli.js
 /build/index.js
 /build/server.js
 /.kilocode/mcp.json
+
+# Codex local MCP/plugin scaffolding
+/.mcp.json
+/.agents/plugins/
+/plugins/yougile-mcp/
+/.claude/

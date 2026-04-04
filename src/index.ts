@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import {StdioServerTransport} from "@modelcontextprotocol/sdk/server/stdio.js";
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import {dirname, join} from "path";
+import {fileURLToPath} from "url";
 
 import {createServer} from "./server.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({path: join(__dirname, "..", ".env"), quiet: true});
 
 // Check if the required environment variables are set
 if (!process.env.YOUGILE_API_KEY) {

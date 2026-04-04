@@ -2,7 +2,10 @@
 const {spawnSync} = require('child_process');
 const {existsSync} = require('fs');
 const {join} = require('path');
-require('dotenv/config');
+const dotenv = require('dotenv');
+
+const projectRoot = __dirname;
+dotenv.config({path: join(projectRoot, '.env'), quiet: true});
 
 // Check if the required environment variables are set
 if (!process.env.YOUGILE_API_KEY) {
@@ -11,16 +14,16 @@ if (!process.env.YOUGILE_API_KEY) {
     process.exit(1);
 }
 
-console.error("Starting Yougile MCP server from directory:", __dirname);
-console.error("Current working directory:", process.cwd());
-console.error("Build path:", join(__dirname, 'build', 'index.js'));
-
 // Check if build directory exists and build if needed
-const buildPath = join(__dirname, 'build', 'index.js');
+const buildPath = join(projectRoot, 'build', 'index.js');
 
 if (!existsSync(buildPath)) {
     console.error("Build file does not exist, attempting to build...");
-    const result = spawnSync('npx', ['tsc'], {stdio: 'pipe', shell: true});
+    const result = spawnSync('npx', ['tsc'], {
+        cwd: projectRoot,
+        stdio: 'pipe',
+        shell: true
+    });
 
     if (result.status !== 0) {
         console.error('TypeScript compilation failed');
@@ -28,15 +31,12 @@ if (!existsSync(buildPath)) {
         process.exit(1);
     }
     console.error("Build completed successfully");
-} else {
-    console.error("Build file exists, proceeding to start server");
 }
 
 // Import and run the built server
 async function startServer() {
     try {
         await require(buildPath);
-        console.error("Server imported successfully");
     } catch (error) {
         console.error('Failed to start Yougile MCP server:', error.message);
         console.error('Stack trace:', error.stack);

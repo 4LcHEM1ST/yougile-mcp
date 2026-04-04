@@ -1,12 +1,16 @@
 {
   "name": "yougile-mcp",
   "version": "1.0.0",
-  "description": "A CLI for YouGile",
+  "description": "A CLI and MCP server for YouGile",
   "main": "yougile.js",
+  "bin": {
+    "yougile": "./bin/yougile.cjs"
+  },
   "type": "module",
   "scripts": {
     "start": "node yougile.js",
     "build": "tsc",
+    "cli": "node build/cli.js",
     "dev": "nodemon --watch src --ext ts --exec \"npm run build\" && node build/index.js",
     "serve": "npm run build && node build/index.js"
   },
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@types/yargs": "^17.0.35",
     "@typescript-eslint/eslint-plugin": "^8.29.0",
     "@typescript-eslint/parser": "^8.29.0",
     "eslint": "^9.19.0",

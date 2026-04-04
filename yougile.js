@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-import 'dotenv/config';
 import {spawnSync} from 'child_process';
 import {existsSync} from 'fs';
 import {dirname, join} from 'path';
 import {fileURLToPath} from 'url';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+dotenv.config({path: join(__dirname, '.env'), quiet: true});
 
 // Check if the required environment variables are set
 if (!process.env.YOUGILE_API_KEY) {
@@ -20,7 +21,11 @@ const buildPath = join(__dirname, 'build', 'index.js');
 
 if (!existsSync(buildPath)) {
     console.error("Build file does not exist, attempting to build...");
-    const result = spawnSync('npx', ['tsc'], {stdio: 'pipe', shell: true});
+    const result = spawnSync('npx', ['tsc'], {
+        cwd: __dirname,
+        stdio: 'pipe',
+        shell: true
+    });
 
     if (result.status !== 0) {
         console.error('TypeScript compilation failed');
@@ -28,8 +33,6 @@ if (!existsSync(buildPath)) {
         process.exit(1);
     }
     console.error("Build completed successfully");
-} else {
-    console.error("Build file exists, proceeding to start server");
 }
 
 // Import and run the built server

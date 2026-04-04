@@ -164,6 +164,8 @@ If you experience "MCP error -32000: Connection closed" when working with differ
 
 - `YOUGILE_API_KEY` - Your Yougile API token (required)
 - `YOUGILE_API_HOST_URL` (optional) - The host URL of the Yougile API Server. Defaults to https://yougile.com/api-v2/
+- `YOUGILE_USER_ID` (optional) - Default user ID for `yougile tasks my`
+- `YOUGILE_USER_EMAIL` (optional) - Default user email for `yougile tasks my`
 - `YOUGILE_DEBUG` (optional) - Set to `1` to enable debug logging. Logs are written to `yougile-mcp-debug.log` in the current working directory. Disabled by default.
 
 ## Available Tools
@@ -239,6 +241,100 @@ To run the server directly:
 
 ```bash
 npm run serve
+```
+
+## CLI Usage
+
+YouGile CLI allows you to interact with YouGile from the command line.
+
+### Installation
+
+```bash
+# Clone and install
+git clone <repo-url>
+cd yougile-mcp
+npm install
+npm run build
+npm link
+
+# Or run directly
+YOUGILE_API_KEY=your_key node build/cli.js --help
+```
+
+### Setup
+
+Create a `.env` file in the project root:
+
+```
+YOUGILE_API_KEY=your_api_key_here
+YOUGILE_USER_ID=your_user_id_here
+# or
+YOUGILE_USER_EMAIL=your_email@example.com
+```
+
+Or set the environment variable:
+
+```bash
+export YOUGILE_API_KEY=your_api_key_here
+```
+
+### Available Commands
+
+```bash
+# Projects
+yougile projects list                    # List all projects
+yougile projects get <id>                # Get project by ID
+yougile projects create --title "..."    # Create a new project
+
+# Tasks
+yougile tasks list                       # List tasks
+yougile tasks list --assignedTo <userId> # Filter by user
+yougile tasks list --columnId <id>       # Filter by column
+yougile tasks list --title "..."         # Filter by title
+yougile tasks my --userId <userId>      # List active tasks for a specific user
+yougile tasks my --email "..."          # Resolve user by email, then list tasks
+yougile tasks get <id>                   # Get task by ID or code (e.g., SAI-515)
+yougile tasks create --title "..." --columnId <id>
+yougile tasks update <id> --title "..." --completed
+yougile tasks complete <id>              # Mark task as completed
+
+# Users
+yougile users list                       # List all users
+yougile users list --email "..."         # Filter by email
+
+# Boards
+yougile boards list                      # List all boards
+yougile boards list --projectId <id>     # Filter by project
+yougile boards get <id>                  # Get board by ID
+
+# Columns
+yougile columns list <boardId>           # List columns in a board
+
+# Chat
+yougile chat get <taskId>                # Get task chat messages
+yougile chat send <taskId> "message"     # Send message to task chat
+```
+
+### Examples
+
+```bash
+# List all projects
+yougile projects list
+
+# Get a specific task by code
+yougile tasks get SAI-515
+
+# Create a new task
+yougile tasks create --title "New feature" --columnId "abc-123" --description "Task description"
+
+# Update task title and mark as completed
+yougile tasks update SAI-515 --title "Updated title" --completed true
+
+# List tasks assigned to a configured user
+yougile tasks my --email "user@example.com"
+
+# Send a message to task chat
+yougile chat send SAI-515 "Comment from CLI"
 ```
 
 ## Development

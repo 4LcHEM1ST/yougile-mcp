@@ -162,39 +162,54 @@ If you experience "MCP error -32000: Connection closed" when working with differ
 
 ### Environment Variables
 
-- `YOUGILE_API_KEY` - Your Yougile API token (required)
-- `YOUGILE_API_HOST_URL` (optional) - The host URL of the Yougile API Server. Defaults to https://yougile.com/api-v2/
-- `YOUGILE_USER_ID` (optional) - Default user ID for `yougile tasks my`
-- `YOUGILE_USER_EMAIL` (optional) - Default user email for `yougile tasks my`
-- `YOUGILE_DEBUG` (optional) - Set to `1` to enable debug logging. Logs are written to `yougile-mcp-debug.log` in the current working directory. Disabled by default.
+**YouGile:**
+- `YOUGILE_API_KEY` — YouGile API token (required)
+- `YOUGILE_API_HOST_URL` (optional) — YouGile API base URL. Defaults to `https://yougile.com/api-v2/`
+- `YOUGILE_USER_ID` (optional) — Default user ID for `yougile tasks my`
+- `YOUGILE_USER_EMAIL` (optional) — Default user email for `yougile tasks my`
+- `YOUGILE_DEBUG` (optional) — Set to `1` to enable debug logging to `yougile-mcp-debug.log`
 
-For the remote HTTP + OAuth deployment, see [Remote deployment with Google OAuth](#remote-deployment-with-google-oauth).
+**HTTP / OAuth server** (only for `npm run serve:http`):
+- `MCP_PUBLIC_URL` — Public HTTPS URL of the server, e.g. `https://mcp.example.com` (required)
+- `MCP_PORT` (optional) — TCP port to listen on. Defaults to `3000`
+- `MCP_HOST` (optional) — Listen address. Defaults to `0.0.0.0`
+- `GOOGLE_CLIENT_ID` — Google OAuth Client ID (required)
+- `GOOGLE_CLIENT_SECRET` — Google OAuth Client Secret (required)
+- `GOOGLE_ALLOWED_EMAILS` — Comma-separated email allowlist
+- `GOOGLE_ALLOWED_DOMAIN` — Restrict to a Google Workspace domain (verified `hd` claim)
+- At least one of `GOOGLE_ALLOWED_EMAILS` / `GOOGLE_ALLOWED_DOMAIN` is **required** — access is deny-by-default and the server refuses to start without it
+
+For a full deployment guide see [DEPLOY.md](DEPLOY.md).
 
 ## Remote deployment with Google OAuth
 
 In addition to the local stdio transport, the server can run as a **remote MCP
-server over Streamable HTTP**, protected by **Google OAuth**. In this mode the
-process acts as an MCP *Resource Server*: every request to `/mcp` must carry a
-valid Google bearer token, while access to YouGile still uses the single shared
-`YOUGILE_API_KEY`.
+server over Streamable HTTP** with a full **Google OAuth 2.0 Authorization Code
+Flow**. The server acts as an OAuth *Authorization Server* for Claude and uses
+Google only to authenticate the real user behind the scenes.
 
 ### How it works
 
-1. The MCP client discovers how to authenticate by fetching
-   `GET /.well-known/oauth-protected-resource` (RFC 9728), which names Google
-   (`https://accounts.google.com`) as the Authorization Server.
-2. The client performs the standard Google OAuth flow and obtains a token.
-3. The client calls `POST /mcp` with `Authorization: Bearer <token>`.
-4. The server verifies the token:
-   - **ID tokens (JWT)** are verified offline against Google's JWKS.
-   - **Access tokens (opaque)** are verified online via Google's `tokeninfo`.
-   - In both cases the audience must equal `GOOGLE_CLIENT_ID`, the email must be
-     verified, and any configured domain / email allowlist must match.
-5. Unauthenticated requests get `401` with a `WWW-Authenticate` header pointing
-   back at the protected-resource metadata.
+1. Claude fetches `/.well-known/oauth-authorization-server` and discovers this server as the AS.
+2. Claude registers dynamically (RFC 7591) at `/register`.
+3. Claude redirects the user to `/authorize` → the server redirects them to Google.
+4. The user signs in with Google; Google returns an authorization code to `/auth/callback`.
+5. The server exchanges the code for a Google id_token, extracts and checks the email against the allowlist.
+6. The server issues its **own** access token (60 min) and refresh token (30 days) to Claude.
+7. Claude calls `POST /` with `Authorization: Bearer <token>` on every MCP request.
+8. When the access token expires Claude uses the refresh token automatically — no re-login needed for 30 days.
 
-The HTTP endpoint is **stateless** — each request gets its own MCP server
-instance, so there is no shared session state between users.
+The HTTP endpoint is **stateless** — each request gets its own MCP server instance with no shared session state between users.
+
+### Google Cloud Console setup
+
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials).
+2. Create **OAuth client ID** → type **Web application**.
+3. Add this **Authorized redirect URI**:
+   ```
+   https://mcp.example.com/auth/callback
+   ```
+4. Copy the **Client ID** and **Client Secret**.
 
 ### Configuration
 
@@ -203,11 +218,12 @@ Copy `.env.example` to `.env` and set at least:
 ```bash
 YOUGILE_API_KEY=your_shared_yougile_key
 MCP_PUBLIC_URL=https://mcp.example.com   # public base URL of THIS server
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-# optional access restrictions:
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+# Recommended — restrict who can sign in:
+GOOGLE_ALLOWED_EMAILS=alice@example.com,bob@example.com
+# or by Google Workspace domain:
 # GOOGLE_ALLOWED_DOMAIN=example.com
-# GOOGLE_ALLOWED_EMAILS=alice@example.com,bob@example.com
-# MCP_PORT=3000
 ```
 
 ### Running
@@ -221,33 +237,51 @@ npm run start:http
 
 Endpoints:
 
-- `POST /mcp` — the MCP endpoint (requires a Google bearer token)
-- `GET /.well-known/oauth-protected-resource` — OAuth resource metadata
-- `GET /.well-known/oauth-authorization-server` — redirects to Google's OpenID config
-- `GET /healthz` — health check
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /` | MCP endpoint (requires Bearer token) |
+| `GET /.well-known/oauth-authorization-server` | OAuth AS metadata |
+| `GET /.well-known/oauth-protected-resource` | Protected resource metadata |
+| `GET /authorize` | Starts OAuth flow (redirects to Google) |
+| `POST /token` | Token exchange / refresh |
+| `POST /register` | Dynamic Client Registration |
+| `GET /auth/callback` | Google callback handler |
+| `GET /health` | Health check |
 
 Run behind a TLS-terminating reverse proxy (the app sets `trust proxy`); set
 `MCP_PUBLIC_URL` to the externally reachable HTTPS URL.
+
+### Connecting Claude.ai
+
+In Claude.ai → Settings → Integrations, add the connector URL:
+
+```
+https://mcp.example.com
+```
+
+Claude will automatically discover the OAuth server, open a Google sign-in popup, and become active once the user signs in.
 
 ### Docker Compose (with automatic TLS)
 
 A ready-to-use `docker-compose.yml` runs the server together with **Caddy**,
 which obtains and renews a publicly-trusted **Let's Encrypt** certificate
-automatically. This matters because **Claude requires a valid, publicly-trusted
-TLS certificate — a self-signed certificate will not work.**
+automatically. **Claude requires a valid, publicly-trusted TLS certificate — a
+self-signed certificate will not work.**
 
 1. Point your domain's DNS (`A`/`AAAA`) at the host.
 2. Copy `.env.example` to `.env` and set `YOUGILE_API_KEY`, `GOOGLE_CLIENT_ID`,
-   `MCP_DOMAIN`, and `ACME_EMAIL`. (`MCP_PUBLIC_URL` is derived as
-   `https://${MCP_DOMAIN}`.)
+   `GOOGLE_CLIENT_SECRET`, `MCP_DOMAIN`, and `ACME_EMAIL`.
+   (`MCP_PUBLIC_URL` is derived automatically as `https://${MCP_DOMAIN}`.)
 3. Start it:
 
 ```bash
 docker compose up -d --build
 ```
 
-Caddy listens on ports 80/443 and proxies `https://${MCP_DOMAIN}` to the MCP
-app. The MCP endpoint is then `https://${MCP_DOMAIN}/mcp`.
+Caddy listens on ports 80/443 and proxies `https://${MCP_DOMAIN}` to the MCP app.
+Add the connector URL `https://${MCP_DOMAIN}` in Claude.ai to connect.
+
+For a full step-by-step guide see [DEPLOY.md](DEPLOY.md).
 
 ## Available Tools
 

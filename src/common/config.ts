@@ -26,18 +26,21 @@ function list(name: string): string[] {
 }
 
 export interface OAuthConfig {
-  /** Public base URL of THIS MCP server, used as the OAuth "resource" identifier. */
+  /** Public base URL of THIS MCP server, used as the OAuth resource identifier. */
   publicUrl: string;
-  /** Google OAuth client ID — the expected `aud` of incoming tokens. */
+  /** Google OAuth client ID — used as `aud` when verifying Google id_tokens. */
   googleClientId: string;
+  /** Google OAuth client secret — required for the authorization code exchange with Google. */
+  googleClientSecret: string;
   /** Optional Google Workspace hosted domain (`hd` claim) the user must belong to. */
   allowedDomain?: string;
-  /** Optional explicit allowlist of user emails (lowercased). Empty = any verified Google account. */
+  /** Allowlist of permitted user emails (lowercased). */
   allowedEmails: string[];
 }
 
 export interface ServerConfig {
   port: number;
+  host: string;
   oauth: OAuthConfig;
 }
 
@@ -50,18 +53,28 @@ export function loadServerConfig(): ServerConfig {
 
   const publicUrl = required("MCP_PUBLIC_URL").replace(/\/+$/, "");
 
+  const allowedDomain = optional("GOOGLE_ALLOWED_DOMAIN")?.toLowerCase();
+  const allowedEmails = list("GOOGLE_ALLOWED_EMAILS");
+
+  // Access is deny-by-default: without at least one restriction, ANY verified Google
+  // account on the internet could reach the shared YouGile workspace. Fail fast so the
+  // misconfiguration surfaces at startup instead of as confusing 403s for everyone.
+  if (allowedEmails.length === 0 && !allowedDomain) {
+    throw new Error(
+      "Access control is not configured: set GOOGLE_ALLOWED_EMAILS and/or GOOGLE_ALLOWED_DOMAIN " +
+        "to restrict who may sign in."
+    );
+  }
+
   return {
     port,
+    host: optional("MCP_HOST") ?? "0.0.0.0",
     oauth: {
       publicUrl,
       googleClientId: required("GOOGLE_CLIENT_ID"),
-      allowedDomain: optional("GOOGLE_ALLOWED_DOMAIN"),
-      allowedEmails: list("GOOGLE_ALLOWED_EMAILS"),
+      googleClientSecret: required("GOOGLE_CLIENT_SECRET"),
+      allowedDomain,
+      allowedEmails,
     },
   };
-}
-
-/** URL of this server's RFC 9728 Protected Resource Metadata document. */
-export function protectedResourceMetadataUrl(publicUrl: string): string {
-  return `${publicUrl}/.well-known/oauth-protected-resource`;
 }

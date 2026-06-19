@@ -168,6 +168,87 @@ If you experience "MCP error -32000: Connection closed" when working with differ
 - `YOUGILE_USER_EMAIL` (optional) - Default user email for `yougile tasks my`
 - `YOUGILE_DEBUG` (optional) - Set to `1` to enable debug logging. Logs are written to `yougile-mcp-debug.log` in the current working directory. Disabled by default.
 
+For the remote HTTP + OAuth deployment, see [Remote deployment with Google OAuth](#remote-deployment-with-google-oauth).
+
+## Remote deployment with Google OAuth
+
+In addition to the local stdio transport, the server can run as a **remote MCP
+server over Streamable HTTP**, protected by **Google OAuth**. In this mode the
+process acts as an MCP *Resource Server*: every request to `/mcp` must carry a
+valid Google bearer token, while access to YouGile still uses the single shared
+`YOUGILE_API_KEY`.
+
+### How it works
+
+1. The MCP client discovers how to authenticate by fetching
+   `GET /.well-known/oauth-protected-resource` (RFC 9728), which names Google
+   (`https://accounts.google.com`) as the Authorization Server.
+2. The client performs the standard Google OAuth flow and obtains a token.
+3. The client calls `POST /mcp` with `Authorization: Bearer <token>`.
+4. The server verifies the token:
+   - **ID tokens (JWT)** are verified offline against Google's JWKS.
+   - **Access tokens (opaque)** are verified online via Google's `tokeninfo`.
+   - In both cases the audience must equal `GOOGLE_CLIENT_ID`, the email must be
+     verified, and any configured domain / email allowlist must match.
+5. Unauthenticated requests get `401` with a `WWW-Authenticate` header pointing
+   back at the protected-resource metadata.
+
+The HTTP endpoint is **stateless** — each request gets its own MCP server
+instance, so there is no shared session state between users.
+
+### Configuration
+
+Copy `.env.example` to `.env` and set at least:
+
+```bash
+YOUGILE_API_KEY=your_shared_yougile_key
+MCP_PUBLIC_URL=https://mcp.example.com   # public base URL of THIS server
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+# optional access restrictions:
+# GOOGLE_ALLOWED_DOMAIN=example.com
+# GOOGLE_ALLOWED_EMAILS=alice@example.com,bob@example.com
+# MCP_PORT=3000
+```
+
+### Running
+
+```bash
+npm install
+npm run serve:http      # builds, then starts the HTTP server
+# or, after `npm run build`:
+npm run start:http
+```
+
+Endpoints:
+
+- `POST /mcp` — the MCP endpoint (requires a Google bearer token)
+- `GET /.well-known/oauth-protected-resource` — OAuth resource metadata
+- `GET /.well-known/oauth-authorization-server` — redirects to Google's OpenID config
+- `GET /healthz` — health check
+
+Run behind a TLS-terminating reverse proxy (the app sets `trust proxy`); set
+`MCP_PUBLIC_URL` to the externally reachable HTTPS URL.
+
+### Docker Compose (with automatic TLS)
+
+A ready-to-use `docker-compose.yml` runs the server together with **Caddy**,
+which obtains and renews a publicly-trusted **Let's Encrypt** certificate
+automatically. This matters because **Claude requires a valid, publicly-trusted
+TLS certificate — a self-signed certificate will not work.**
+
+1. Point your domain's DNS (`A`/`AAAA`) at the host.
+2. Copy `.env.example` to `.env` and set `YOUGILE_API_KEY`, `GOOGLE_CLIENT_ID`,
+   `MCP_DOMAIN`, and `ACME_EMAIL`. (`MCP_PUBLIC_URL` is derived as
+   `https://${MCP_DOMAIN}`.)
+3. Start it:
+
+```bash
+docker compose up -d --build
+```
+
+Caddy listens on ports 80/443 and proxies `https://${MCP_DOMAIN}` to the MCP
+app. The MCP endpoint is then `https://${MCP_DOMAIN}/mcp`.
+
 ## Available Tools
 
 ### Users

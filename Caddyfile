@@ -1,0 +1,12 @@
+# Caddy obtains and renews a publicly-trusted Let's Encrypt certificate for
+# ${MCP_DOMAIN} automatically, then proxies to the MCP app over the internal
+# Docker network. This is the certificate Claude needs — self-signed will not work.
+
+{$MCP_DOMAIN} {
+	tls {$ACME_EMAIL}
+
+	encode gzip
+
+	# Forward everything to the MCP app (it serves /mcp and the .well-known docs)
+	reverse_proxy yougile-mcp:3000
+}

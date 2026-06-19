@@ -1,0 +1,13 @@
+node_modules
+build
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+yougile-mcp-debug.log
+docs
+test-*.js
+test-*.json
+README.md

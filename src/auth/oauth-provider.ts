@@ -16,6 +16,7 @@
 import { randomUUID } from "node:crypto";
 import axios from "axios";
 import type { Response } from "express";
+import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
 
 import type { OAuthConfig } from "../common/config.js";
 
@@ -40,11 +41,9 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> {
   return JSON.parse(json) as Record<string, unknown>;
 }
 
-interface ClientRecord {
-  client_id: string;
-  client_id_issued_at: number;
-  [key: string]: unknown;
-}
+// The registered-client shape the MCP SDK's auth router expects (includes the
+// required `redirect_uris`, which the SDK validates against on every authorize).
+type ClientRecord = OAuthClientInformationFull;
 
 interface PendingFlow {
   client: ClientRecord;
@@ -81,12 +80,12 @@ class InMemoryClientsStore {
     return this.clients.get(clientId);
   }
 
-  registerClient(client: Record<string, unknown>): ClientRecord {
-    const clientId = randomUUID();
+  registerClient(client: ClientRecord): ClientRecord {
+    const clientId = client.client_id ?? randomUUID();
     const full: ClientRecord = {
       ...client,
       client_id: clientId,
-      client_id_issued_at: now(),
+      client_id_issued_at: client.client_id_issued_at ?? now(),
     };
     this.clients.set(clientId, full);
     return full;

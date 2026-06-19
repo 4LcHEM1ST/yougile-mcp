@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import axios from "axios";
 import type { Response } from "express";
 import type { OAuthClientInformationFull } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type { AuthorizationParams } from "@modelcontextprotocol/sdk/server/auth/provider.js";
 
 import type { OAuthConfig } from "../common/config.js";
 
@@ -63,14 +64,6 @@ interface TokenRecord {
   scopes: string[];
   email: string;
   expiresAt: number;
-}
-
-interface AuthorizationParams {
-  redirectUri: string;
-  codeChallenge: string;
-  scopes?: string[];
-  state?: string;
-  resource?: string;
 }
 
 class InMemoryClientsStore {
